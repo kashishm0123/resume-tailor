@@ -410,7 +410,7 @@ async function openSettings() {
     .join("");
   $("#keyField").hidden = s.keyFromServer;
   $("#keyStatus").textContent = s.keyFromServer
-    ? "✓ The API key is set on the server."
+    ? "✓ Claude access is configured on the server (no key needed here)."
     : s.hasKey
       ? "✓ A key is saved."
       : "No key saved yet — get one at console.anthropic.com.";

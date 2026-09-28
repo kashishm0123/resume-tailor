@@ -29,16 +29,26 @@ npm start
 
 Locally, the app asks for your Anthropic API key in Settings (⚙) and saves it in `data/config.json`, which is git-ignored.
 
-## Host it on Render (free)
+## Host it on Google Cloud Run (no API key)
 
-1. Sign in at https://render.com with GitHub.
-2. Choose **New → Blueprint** and pick this repo. Render reads `render.yaml`.
-3. Fill in the two secrets it asks for:
-   - `ANTHROPIC_API_KEY`: your key from console.anthropic.com
-   - `APP_PASSWORD`: any password. The browser asks for it the first time you open the site (the username can be anything).
-4. Deploy. Your site is at `https://resume-tailor-XXXX.onrender.com`.
+The hosted version uses **Workload Identity Federation**: Cloud Run gives the app a Google identity, and the Anthropic SDK exchanges it for a short-lived Claude token. No API key is stored anywhere.
 
-On the free plan, the site sleeps after 15 minutes of inactivity. The first visit after that takes about 30–50 seconds to wake up. The server refuses to start on a public address unless `APP_PASSWORD` is set.
+1. **Google Cloud:** create a project, enable billing (this app fits in the free tier), and create a service account, e.g. `resume-tailor@PROJECT.iam.gserviceaccount.com`. Note its numeric unique ID.
+2. **Claude Console → Settings → Workload identity → Connect workload → Google Cloud:**
+   - Issuer: `https://accounts.google.com` (discovery)
+   - Rule match: audience `https://api.anthropic.com`, claims `sub` = the unique ID and `email` = the service account email
+   - Note the rule ID (`fdrl_…`), service account ID (`svac_…`), organization ID and workspace ID.
+3. **Cloud Run:** deploy this repo (it has a `Dockerfile`), run it as the service account above, allow unauthenticated access (the app has its own password), and set these environment variables:
+
+| Variable | Value |
+|---|---|
+| `ANTHROPIC_FEDERATION_RULE_ID` | `fdrl_…` |
+| `ANTHROPIC_ORGANIZATION_ID` | your organization UUID |
+| `ANTHROPIC_SERVICE_ACCOUNT_ID` | `svac_…` |
+| `ANTHROPIC_WORKSPACE_ID` | `wrkspc_…` (optional if the rule covers one workspace) |
+| `APP_PASSWORD` | the password the browser asks for |
+
+Do **not** set `ANTHROPIC_API_KEY` there. The server refuses to start on a public address without `APP_PASSWORD`.
 
 ## Settings
 

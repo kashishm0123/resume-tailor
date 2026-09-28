@@ -10,7 +10,7 @@ import { extractText, getDocumentProxy } from "unpdf";
 
 import * as store from "./lib/store.js";
 import { fetchJob } from "./lib/jobfetch.js";
-import { normalizeResume, tailorResume, hasKey, MODELS } from "./lib/claude.js";
+import { normalizeResume, tailorResume, hasKey, usesFederation, MODELS } from "./lib/claude.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4747;
@@ -62,13 +62,13 @@ const wrap = (fn) => (req, res) =>
 app.get("/api/settings", wrap(async (_req, res) => {
   res.json({
     hasKey: await hasKey(),
-    keyFromServer: Boolean(process.env.ANTHROPIC_API_KEY),
+    keyFromServer: usesFederation || Boolean(process.env.ANTHROPIC_API_KEY),
     models: MODELS,
   });
 }));
 
 app.post("/api/settings", wrap(async (req, res) => {
-  if (process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: "The key is set on the server." });
+  if (usesFederation || process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: "The key is set on the server." });
   if (typeof req.body.apiKey === "string" && req.body.apiKey.trim()) {
     await store.saveConfig({ apiKey: req.body.apiKey.trim() });
   }
@@ -141,5 +141,6 @@ app.post("/api/tailor", wrap(async (req, res) => {
 }));
 
 app.listen(PORT, HOST, () => {
+  console.log(`  Claude auth: ${usesFederation ? "workload identity federation" : "API key"}`);
   console.log(`\n  Resume Tailor is running →  http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}\n`);
 });
