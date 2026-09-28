@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resume Tailor</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar no-print">
+    <div class="brand">Resume&nbsp;Tailor</div>
+    <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
+  </header>
+
+  <div class="layout">
+    <!-- Catalogue -->
+    <aside class="sidebar no-print">
+      <div class="sidebar-head">
+        <h2>Catalogue</h2>
+        <button class="btn small" id="newBtn">+ New</button>
+      </div>
+      <input type="search" id="catSearch" placeholder="Search company or role…" />
+      <ul id="catalogue" class="cat-list"></ul>
+      <p class="muted tiny" id="catEmpty">Every tailored resume you make is saved here, in this browser.</p>
+      <div class="backup">
+        <button class="btn ghost small" id="exportBtn" title="Download all versions as a backup file">Export backup</button>
+        <label class="btn ghost small" title="Restore from a backup file">Import
+          <input type="file" id="importFile" accept=".json,application/json" hidden />
+        </label>
+      </div>
+    </aside>
+
+    <main>
+      <!-- Compose view -->
+      <section id="composeView">
+        <div class="card" id="resumeCard">
+          <div class="card-head">
+            <h3><span class="step">1</span> Your current resume</h3>
+            <div class="row gap">
+              <button class="btn ghost small" id="editResumeBtn" hidden>Edit</button>
+              <label class="btn small">
+                Upload PDF / DOCX
+                <input type="file" id="resumeFile" accept=".pdf,.docx,.txt,.md" hidden />
+              </label>
+            </div>
+          </div>
+          <div id="resumeEmpty" class="dropzone">
+            Drop your resume here (PDF, DOCX, TXT) — or <a href="#" id="pasteResumeLink">paste the text</a>.
+          </div>
+          <div id="resumeLoaded" hidden>
+            <p class="ok-line">✓ Resume loaded — <span id="resumeName"></span></p>
+          </div>
+          <div id="resumeEditor" hidden>
+            <textarea id="resumeText" rows="16" placeholder="Paste your resume here…"></textarea>
+            <div class="row gap end">
+              <button class="btn ghost small" id="cancelResumeBtn">Cancel</button>
+              <button class="btn small primary" id="saveResumeBtn">Save resume</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3><span class="step">2</span> The job you're applying for</h3>
+          </div>
+          <div id="fetchNotice" class="notice" hidden></div>
+          <textarea id="jobInput" rows="7"
+            placeholder="Paste the job posting link (https://…)&#10;— or paste the full job description text."></textarea>
+          <div class="row gap wrap" id="jobMeta" hidden>
+            <input id="jobTitle" placeholder="Job title (optional)" />
+            <input id="jobCompany" placeholder="Company (optional)" />
+          </div>
+          <div class="row between">
+            <span class="muted tiny" id="inputHint">We'll detect whether it's a link or a description.</span>
+            <button class="btn primary" id="goBtn">Tailor my resume →</button>
+          </div>
+        </div>
+
+        <div id="progress" class="card progress" hidden>
+          <div class="spinner"></div>
+          <div>
+            <strong id="progressTitle">Working…</strong>
+            <div class="muted tiny" id="progressSub"></div>
+          </div>
+        </div>
+        <div id="errorBox" class="notice error" hidden></div>
+      </section>
+
+      <!-- Result view -->
+      <section id="resultView" hidden>
+        <div class="result-head no-print">
+          <div>
+            <h2 id="rTitle"></h2>
+            <div class="muted tiny" id="rSub"></div>
+          </div>
+          <div class="score" id="rScore"></div>
+        </div>
+        <p id="rSummary" class="summary no-print"></p>
+
+        <nav class="tabs no-print" role="tablist">
+          <button role="tab" data-tab="changes" class="active">What changed</button>
+          <button role="tab" data-tab="resume">Tailored resume</button>
+          <button role="tab" data-tab="diff">Full comparison</button>
+          <button role="tab" data-tab="job">Job description</button>
+        </nav>
+
+        <div class="tab" data-panel="changes">
+          <div id="rKeywords"></div>
+          <div id="rChanges"></div>
+          <div id="rGaps"></div>
+        </div>
+
+        <div class="tab" data-panel="resume" hidden>
+          <div class="row gap wrap no-print toolbar">
+            <button class="btn small" id="pdfBtn">Save as PDF</button>
+            <button class="btn small ghost" id="mdBtn">Download .md</button>
+            <button class="btn small ghost" id="copyBtn">Copy text</button>
+            <button class="btn small ghost" id="editVersionBtn">Edit</button>
+          </div>
+          <div id="versionEditor" hidden class="no-print">
+            <textarea id="versionText" rows="24"></textarea>
+            <div class="row gap end">
+              <button class="btn ghost small" id="cancelVersionBtn">Cancel</button>
+              <button class="btn small primary" id="saveVersionBtn">Save changes</button>
+            </div>
+          </div>
+          <article id="rResume" class="resume-paper"></article>
+        </div>
+
+        <div class="tab" data-panel="diff" hidden>
+          <p class="muted tiny">Word-level comparison of your original resume vs. this version.
+            <span class="del">Removed</span> · <span class="ins">Added</span></p>
+          <pre id="rDiff" class="diff"></pre>
+        </div>
+
+        <div class="tab" data-panel="job" hidden>
+          <p class="tiny" id="rJobUrl"></p>
+          <pre id="rJob" class="jobtext"></pre>
+        </div>
+
+        <div class="row gap no-print" style="margin-top:24px">
+          <button class="btn ghost small danger" id="deleteBtn">Delete this version</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Settings dialog -->
+  <dialog id="settingsDlg">
+    <form method="dialog" id="settingsForm">
+      <h3>Settings</h3>
+      <label id="keyField">Anthropic API key
+        <input type="password" id="apiKey" placeholder="sk-ant-… (leave blank to keep current)" autocomplete="off" />
+      </label>
+      <p class="muted tiny" id="keyStatus"></p>
+      <label>Model
+        <select id="modelSel"></select>
+      </label>
+      <p class="muted tiny">Resumes and saved versions are stored in this browser. Use “Export backup” in the sidebar to keep a copy.</p>
+      <div class="row gap end">
+        <button class="btn ghost" value="cancel">Close</button>
+        <button class="btn primary" id="saveSettings" value="default">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/vendor/marked.js"></script>
+  <script src="/vendor/diff.js"></script>
+  <script src="/db.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
