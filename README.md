@@ -29,7 +29,18 @@ npm start
 
 Locally, the app asks for your Anthropic API key in Settings (⚙) and saves it in `data/config.json`, which is git-ignored.
 
-## Host it on Google Cloud Run (no API key)
+## Host it on Render (free)
+
+1. Sign in at https://render.com with GitHub.
+2. Choose **New → Blueprint** and pick this repo. Render reads `render.yaml`.
+3. Fill in the two secrets it asks for:
+   - `ANTHROPIC_API_KEY`: a key from console.anthropic.com (ideally a dedicated key in its own workspace with a spend limit)
+   - `APP_PASSWORD`: any password. The browser asks for it the first time you open the site (the username can be anything).
+4. Deploy. Your site is at `https://resume-tailor-XXXX.onrender.com`.
+
+On the free plan the site sleeps after 15 minutes without visits; the first visit after that takes about 30–50 seconds. The server refuses to start on a public address unless `APP_PASSWORD` is set.
+
+## Alternative: Google Cloud Run (no API key)
 
 The hosted version uses **Workload Identity Federation**: Cloud Run gives the app a Google identity, and the Anthropic SDK exchanges it for a short-lived Claude token. No API key is stored anywhere.
 
