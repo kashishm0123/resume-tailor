@@ -100,6 +100,7 @@
         <nav class="tabs no-print" role="tablist">
           <button role="tab" data-tab="changes" class="active">What changed</button>
           <button role="tab" data-tab="resume">Tailored resume</button>
+          <button role="tab" data-tab="letter">Cover letter</button>
           <button role="tab" data-tab="diff">Full comparison</button>
           <button role="tab" data-tab="job">Job description</button>
         </nav>
@@ -112,7 +113,7 @@
 
         <div class="tab" data-panel="resume" hidden>
           <div class="row gap wrap no-print toolbar">
-            <button class="btn small" id="pdfBtn">Save as PDF</button>
+            <button class="btn small" id="pdfBtn">Download PDF</button>
             <button class="btn small ghost" id="mdBtn">Download .md</button>
             <button class="btn small ghost" id="copyBtn">Copy text</button>
             <button class="btn small ghost" id="editVersionBtn">Edit</button>
@@ -125,6 +126,31 @@
             </div>
           </div>
           <article id="rResume" class="resume-paper"></article>
+        </div>
+
+        <div class="tab" data-panel="letter" hidden>
+          <div id="letterEmpty" class="card">
+            <p style="margin-top:0">Write a cover letter for <b id="letterJobName">this job</b>, based on this tailored resume. Like the resume, it only uses facts from your experience.</p>
+            <label class="tiny muted" for="letterNotes">Anything to mention? (optional)</label>
+            <textarea id="letterNotes" rows="3" placeholder="e.g. Available to join immediately · open to relocating to Gurugram · referred by Priya Singh"></textarea>
+            <div class="row end"><button class="btn primary" id="letterGenBtn">Write cover letter</button></div>
+          </div>
+          <div id="letterReady" hidden>
+            <div class="row gap wrap toolbar">
+              <button class="btn small" id="letterPdfBtn">Download PDF</button>
+              <button class="btn small ghost" id="letterCopyBtn">Copy text</button>
+              <button class="btn small ghost" id="letterEditBtn">Edit</button>
+              <button class="btn small ghost" id="letterRegenBtn">Write a new one</button>
+            </div>
+            <div id="letterEditor" hidden>
+              <textarea id="letterText" rows="20"></textarea>
+              <div class="row gap end">
+                <button class="btn ghost small" id="letterCancelBtn">Cancel</button>
+                <button class="btn small primary" id="letterSaveBtn">Save changes</button>
+              </div>
+            </div>
+            <article id="rLetter" class="resume-paper letter-paper"></article>
+          </div>
         </div>
 
         <div class="tab" data-panel="diff" hidden>

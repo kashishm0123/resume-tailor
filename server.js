@@ -10,7 +10,8 @@ import { extractText, getDocumentProxy } from "unpdf";
 
 import * as store from "./lib/store.js";
 import { fetchJob } from "./lib/jobfetch.js";
-import { normalizeResume, tailorResume, hasKey, usesFederation, MODELS } from "./lib/claude.js";
+import { normalizeResume, tailorResume, writeCoverLetter, hasKey, usesFederation, MODELS } from "./lib/claude.js";
+import { resumePdf, coverLetterPdf } from "./lib/pdf.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 4747;
@@ -138,6 +139,44 @@ app.post("/api/tailor", wrap(async (req, res) => {
   }
   const result = await tailorResume(baseResume, job, req.body.model);
   res.json({ job, result });
+}));
+
+// ---------- cover letter ----------
+app.post("/api/cover-letter", wrap(async (req, res) => {
+  const resume = String(req.body.resume || "");
+  const job = {
+    title: String(req.body.title || ""),
+    company: String(req.body.company || ""),
+    description: String(req.body.description || "").trim(),
+  };
+  if (!resume.trim() || job.description.length < 100) {
+    return res.status(400).json({ error: "Need both the resume and the job description to write a cover letter." });
+  }
+  const notes = String(req.body.notes || "").slice(0, 2000);
+  res.json({ letter: await writeCoverLetter(resume, job, notes, req.body.model) });
+}));
+
+// ---------- PDF downloads ----------
+function sendPdf(res, buffer, filename) {
+  const safe = String(filename || "document").replace(/[^\w.-]+/g, "_").slice(0, 100) || "document";
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="${safe}.pdf"`,
+    "Cache-Control": "no-store",
+  });
+  res.send(buffer);
+}
+
+app.post("/api/pdf/resume", wrap(async (req, res) => {
+  const markdown = String(req.body.markdown || "");
+  if (!markdown.trim()) return res.status(400).json({ error: "Nothing to export." });
+  sendPdf(res, await resumePdf(markdown, req.body.filename), req.body.filename);
+}));
+
+app.post("/api/pdf/cover-letter", wrap(async (req, res) => {
+  const letter = req.body.letter;
+  if (!letter || !Array.isArray(letter.paragraphs)) return res.status(400).json({ error: "Nothing to export." });
+  sendPdf(res, await coverLetterPdf({ resumeMarkdown: String(req.body.resume || ""), letter, title: req.body.filename }), req.body.filename);
 }));
 
 app.listen(PORT, HOST, () => {

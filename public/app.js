@@ -310,6 +310,7 @@ function openVersion(v) {
     ? `Source: <a href="${esc(v.sourceUrl)}" target="_blank" rel="noopener">${esc(v.sourceUrl)}</a>`
     : "";
 
+  renderLetter();
   selectTab("changes");
   renderCatalogue();
   window.scrollTo(0, 0);
@@ -328,13 +329,36 @@ function fileBase() {
   return `${name}_Resume_${co}`;
 }
 
-$("#pdfBtn").addEventListener("click", () => {
-  selectTab("resume");
-  const prev = document.title;
-  document.title = fileBase(); // becomes the default PDF filename
-  window.print();
-  document.title = prev;
-});
+// PDFs are built on the server: real text (ATS-friendly) and no browser
+// print header/footer with the site URL or page title.
+async function downloadPdf(path, body, filename, btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Preparing…";
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, filename }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Couldn't create the PDF.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: `${filename}.pdf` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+$("#pdfBtn").addEventListener("click", (e) =>
+  downloadPdf("/api/pdf/resume", { markdown: state.current.resume }, fileBase(), e.currentTarget)
+);
 
 $("#mdBtn").addEventListener("click", () => {
   const blob = new Blob([state.current.resume], { type: "text/markdown" });
@@ -374,6 +398,93 @@ $("#deleteBtn").addEventListener("click", async () => {
   await loadCatalogue();
   showCompose();
   toast("Version deleted.");
+});
+
+// ---------- cover letter ----------
+function letterToText(l) {
+  return [l.greeting, ...l.paragraphs, l.closing, l.signature_name].join("\n\n");
+}
+
+function textToLetter(text, prev) {
+  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length < 3) return { ...prev, paragraphs: blocks };
+  return {
+    greeting: blocks[0],
+    paragraphs: blocks.slice(1, -2),
+    closing: blocks.at(-2),
+    signature_name: blocks.at(-1),
+  };
+}
+
+function renderLetter() {
+  const v = state.current;
+  const l = v.coverLetter;
+  $("#letterJobName").textContent = [v.title, v.company].filter(Boolean).join(" at ") || "this job";
+  $("#letterEmpty").hidden = Boolean(l);
+  $("#letterReady").hidden = !l;
+  $("#letterEditor").hidden = true;
+  $("#rLetter").hidden = false;
+  if (!l) return;
+  $("#rLetter").innerHTML =
+    `<p>${esc(l.greeting)}</p>` +
+    l.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("") +
+    `<p>${esc(l.closing)}</p><p class="sig">${esc(l.signature_name)}</p>`;
+}
+
+async function generateLetter(btn) {
+  const v = state.current;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Writing… (about 20–40 seconds)";
+  try {
+    const { letter } = await api("/api/cover-letter", {
+      method: "POST",
+      body: JSON.stringify({
+        resume: v.resume,
+        title: v.title,
+        company: v.company,
+        description: v.jobDescription,
+        notes: $("#letterNotes").value.trim(),
+        model: getModel(),
+      }),
+    });
+    v.coverLetter = letter;
+    await DB.putVersion(v);
+    renderLetter();
+    toast("Cover letter saved with this version.");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+$("#letterGenBtn").addEventListener("click", (e) => generateLetter(e.currentTarget));
+$("#letterRegenBtn").addEventListener("click", (e) => {
+  if (confirm("Replace this cover letter with a new one?")) generateLetter(e.currentTarget);
+});
+$("#letterPdfBtn").addEventListener("click", (e) => {
+  const v = state.current;
+  const name = firstLine(v.resume).replace(/[^\w]+/g, "_");
+  const co = (v.company || "job").replace(/[^\w]+/g, "_");
+  downloadPdf("/api/pdf/cover-letter", { resume: v.resume, letter: v.coverLetter }, `${name}_Cover_Letter_${co}`, e.currentTarget);
+});
+$("#letterCopyBtn").addEventListener("click", async () => {
+  await navigator.clipboard.writeText(letterToText(state.current.coverLetter));
+  toast("Cover letter copied.");
+});
+$("#letterEditBtn").addEventListener("click", () => {
+  $("#letterText").value = letterToText(state.current.coverLetter);
+  $("#letterEditor").hidden = false;
+  $("#rLetter").hidden = true;
+});
+$("#letterCancelBtn").addEventListener("click", renderLetter);
+$("#letterSaveBtn").addEventListener("click", async () => {
+  state.current.coverLetter = textToLetter($("#letterText").value, state.current.coverLetter);
+  await DB.putVersion(state.current);
+  renderLetter();
+  toast("Saved.");
 });
 
 // ---------- backup ----------
